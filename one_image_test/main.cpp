@@ -91,7 +91,9 @@ int main()
                 cout << "Test rotation vector output, euler-XYZ, " << rot_vec_2 << endl;
 
                 // Image rotation test
-                Mat im2 = erp_rot.rotate_image(im, rot_mat);
+                // We want to rotate "camera" axis, not "pixel".
+                // In that case, We use inverse of rotation matrix 
+                Mat im2 = erp_rot.rotate_image(im, rot_mat_inv);
 
                 imshow_resize("original", im);
                 imshow_resize("with rotation matrix", im2);
