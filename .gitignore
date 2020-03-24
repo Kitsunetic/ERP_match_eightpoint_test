@@ -3,5 +3,6 @@ CMake*
 Makefile
 *.out
 *.ods
+*.odc
 *.txt
 .vscode

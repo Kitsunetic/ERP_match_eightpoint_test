@@ -175,11 +175,12 @@ void eight_point::find(int im_width, int im_height
     #pragma omp parallel for
     for(int i = 0; i < match_size; i++)
     {
-        key_point_left_rect[i].x = sin(key_point_left_radian[i].y)*cos(key_point_left_radian[i].x);
+        // For MPEG's OMAF axis
+        key_point_left_rect[i].x = -sin(key_point_left_radian[i].y)*cos(key_point_left_radian[i].x);
         key_point_left_rect[i].y = sin(key_point_left_radian[i].y)*sin(key_point_left_radian[i].x);
         key_point_left_rect[i].z = cos(key_point_left_radian[i].y);
 
-        key_point_right_rect[i].x = sin(key_point_right_radian[i].y)*cos(key_point_right_radian[i].x);
+        key_point_right_rect[i].x = -sin(key_point_right_radian[i].y)*cos(key_point_right_radian[i].x);
         key_point_right_rect[i].y = sin(key_point_right_radian[i].y)*sin(key_point_right_radian[i].x);
         key_point_right_rect[i].z = cos(key_point_right_radian[i].y);
     }

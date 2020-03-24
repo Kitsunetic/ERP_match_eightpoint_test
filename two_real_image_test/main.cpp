@@ -58,8 +58,8 @@ int test_angle_gen()
 int main()
 {
     // input image
-    Mat im_left = imread("left.png");
-    Mat im_right = imread("right.png");
+    Mat im_left = imread("left_building.jpg");
+    Mat im_right = imread("right_building.jpg");
 
     // image rotation tool
     erp_rotation erp_rot;
@@ -77,7 +77,7 @@ int main()
     log.open(log_name);
 
     // Test with multi-angle
-    vector<double> test_angle(16);
+    vector<double> test_angle(1);
     generate(test_angle.begin(), test_angle.end(), test_angle_gen);
     for(int x = 0; x < test_angle.size(); x++)
     {
