@@ -61,9 +61,10 @@ int main()
 
     // Tool for drawing epipolar line
     cout << "Draw epipole line on ERP" << endl;
-    epipolar_tool epi_tool(left_key, right_key, im.cols, im.rows, OUTPUT_WIDTH/10, OUTPUT_HEIGHT/10, 7);
+    epipolar_tool epi_tool(left_key, right_key, im.cols, im.rows, OUTPUT_WIDTH/3, OUTPUT_HEIGHT/3, 7);
 
     int x_angle = 30, y_angle = 30, z_angle = 30;
+    int x_tran = 50, y_tran = 50, z_tran = 50;
     String test_window_name ="Epipole manual tester";
     namedWindow(test_window_name);
     createTrackbar("x_axis_rotation", test_window_name, &x_angle, 60);
@@ -73,23 +74,42 @@ int main()
     setTrackbarPos("y_axis_rotation", test_window_name, 30);
     setTrackbarPos("z_axis_rotation", test_window_name, 30);
 
+    createTrackbar("x_axis_translation", test_window_name, &x_tran, 100);
+    createTrackbar("y_axis_translation", test_window_name, &y_tran, 100);
+    createTrackbar("z_axis_translation", test_window_name, &z_tran, 100);
+    setTrackbarPos("x_axis_translation", test_window_name, 50);
+    setTrackbarPos("y_axis_translation", test_window_name, 50);
+    setTrackbarPos("z_axis_translation", test_window_name, 50);
+
     // Draw epipolar line
+    Mat im_resized, im2_resized;
+    resize(im, im_resized, Size(OUTPUT_WIDTH/3, OUTPUT_HEIGHT/3));
+    resize(im2, im2_resized, Size(OUTPUT_WIDTH/3, OUTPUT_HEIGHT/3));
     while(1)
     {
         // Test Essential matrix
         Vec3d test_rot_vec = RAD(Vec3d(x_angle-30, y_angle-30, z_angle-30));
-        Vec3d test_t_vec = Vec3d(0, -1, 0);
+        Vec3d test_t_vec = Vec3d(double(x_tran-50)/100.0, double(y_tran-50)/100.0, double(z_tran-50)/100.0);
 
         Mat test_rot_mat = erp_rot.eular2rot(test_rot_vec);
+        Mat test_rot_mat_inv = test_rot_mat.inv();
         Mat test_t_cross = (Mat_<double>(3, 3) << 0 , -test_t_vec[2] , test_t_vec[1]
                                             , test_t_vec[2] , 0 , -test_t_vec[0]
                                             , -test_t_vec[1] , test_t_vec[0] , 0);
-        Mat test_E_mat = test_rot_mat.inv()*test_t_cross;
+        Mat test_E_mat = test_rot_mat_inv*test_t_cross;
 
+        // Draw epipole
         Mat epipole_mat = epi_tool.draw_epipole(test_E_mat);
-        imshow(test_window_name, epipole_mat);
 
-        if(waitKey(1) == 27)
+        // concat images
+        Mat im_resized_rotated = erp_rot.rotate_image(im_resized, test_rot_mat_inv);
+        vector<Mat> show_mats = {im_resized_rotated, im2_resized, epipole_mat};
+        Mat show_mat;
+        hconcat(show_mats, show_mat);
+
+        // playback
+        imshow(test_window_name, show_mat);
+        if(waitKey(50) == 27)
             break;
     }
 

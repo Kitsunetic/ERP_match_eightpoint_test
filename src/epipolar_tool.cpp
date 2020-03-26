@@ -88,22 +88,33 @@ cv::Mat epipolar_tool::draw_epipole(cv::Mat& test_E_mat)
         {
             for(int key_idx = 0; key_idx < n_key; key_idx++)
             {
-                Mat pixel_mat = (Mat_<double>(3, 1) << pixel_rect[i][j].x , pixel_rect[i][j].y , pixel_rect[i][j].z);
-                Mat left_key_mat = (Mat_<double>(3, 1) << key_point_left_rect[key_idx].x , key_point_left_rect[key_idx].y , key_point_left_rect[key_idx].z);
-                Mat result = (pixel_mat.t()*test_E_mat*left_key_mat);
+                // Draw epipole
+                double p[3] = {pixel_rect[i][j].x, pixel_rect[i][j].y, pixel_rect[i][j].z};
+                double l[3] = {key_point_left_rect[key_idx].x , key_point_left_rect[key_idx].y , key_point_left_rect[key_idx].z};
+                double* e = (double*)test_E_mat.data;
+                double result = l[0]*(p[0]*e[0] + p[1]*e[3] + p[2]*e[6])
+                               +l[1]*(p[0]*e[1] + p[1]*e[4] + p[2]*e[7])
+                               +l[2]*(p[0]*e[2] + p[1]*e[5] + p[2]*e[8]);
 
-                if(abs(((double*)result.data)[0]) < 0.002)
+                if(abs(result) < 0.002)
                 {
                     epipole_mat.at<Vec3b>(i, j) = Vec3b(color_set[key_idx].val[0], color_set[key_idx].val[1], color_set[key_idx].val[2]);
                 }
+
+                // Draw feature point of right iamge
+                int i_idx = right_key_[key_idx].pt.y*resize_ratio_h;
+                int j_idx = right_key_[key_idx].pt.x*resize_ratio_w;
+                Vec3b color_vec3b = Vec3b(color_set[key_idx].val[0], color_set[key_idx].val[1], color_set[key_idx].val[2]);
+                int dot_size = 5;
+                for(int dot_i = (i_idx - dot_size); dot_i < (i_idx + dot_size+1); dot_i++)
+                {
+                    for(int dot_j = (j_idx - dot_size); dot_j < (j_idx + dot_size+1); dot_j++)
+                    {
+                        epipole_mat.at<Vec3b>(dot_i, dot_j) = color_vec3b;
+                    }
+                }
             }
         }
-    }
-
-    for(int key_idx = 0; key_idx < random_idx.size(); key_idx++)
-    {
-        Point2f right_key_pt = Point2f(right_key_[key_idx].pt.x*resize_ratio_w, right_key_[key_idx].pt.y*resize_ratio_h); 
-        circle(epipole_mat, right_key_pt, 4, color_set[key_idx],2);
     }
     return epipole_mat;
 }
