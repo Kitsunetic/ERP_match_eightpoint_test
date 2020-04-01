@@ -58,8 +58,8 @@ int test_angle_gen()
 int main()
 {
     // input image
-    Mat im_left = imread("left_building.jpg");
-    Mat im_right = imread("right_building.jpg");
+    Mat im_left = imread("left_building2.jpg");
+    Mat im_right = imread("right_building2.jpg");
 
     // image rotation tool
     erp_rotation erp_rot;
@@ -76,8 +76,42 @@ int main()
     ofstream log;
     log.open(log_name);
 
+    Vec3d initial_rot_vec;
+    Vec3d initial_t_vec;
+    Mat initial_rot_mat;
+    {
+        // Initial Guess
+        cout << "initial Guess" << endl;
+
+        // Spherical surf test
+        cout << "Spherical surf test" << endl;
+        spherical_surf sph_surf;
+        vector<KeyPoint> left_key;
+        vector<KeyPoint> right_key;
+        int match_size;
+        Mat match_output;
+        int total_key_num;
+        sph_surf.do_all(im_left, im_right, left_key, right_key, match_size, match_output, total_key_num);
+
+        cout << "match result" << endl;
+        cout << "total number of keypoint: " << total_key_num << endl;
+        cout << "matched: " << match_size << endl;
+
+        cout << "Eight-Point estimation test" << endl;
+        eight_point estimater;
+        Vec3f rot_vec_estimated, t_vec_estimated;
+        estimater.find(im_left.cols, im_left.rows, left_key, right_key, rot_vec_estimated, t_vec_estimated, match_size);
+
+        initial_rot_vec = Vec3d(rot_vec_estimated[0], rot_vec_estimated[1], rot_vec_estimated[2]);
+        initial_t_vec = Vec3d(t_vec_estimated[0], t_vec_estimated[1], t_vec_estimated[2]);
+        initial_rot_mat = erp_rot.eular2rot(initial_rot_vec);
+
+        cout << "R_vector: " << DEGREE(initial_rot_vec) << endl;
+        cout << "T_vector: " << initial_t_vec << endl;
+    }
+
     // Test with multi-angle
-    vector<double> test_angle(1);
+    vector<double> test_angle(16);
     generate(test_angle.begin(), test_angle.end(), test_angle_gen);
     for(int x = 0; x < test_angle.size(); x++)
     {
@@ -91,12 +125,6 @@ int main()
                 Vec3d   rot_vec = RAD(test_angle_vec);
                 Mat     rot_mat = erp_rot.eular2rot(rot_vec);
                 Mat     rot_mat_inv = rot_mat.inv();
-
-                // Rotation matrix <-> vector conversion test in xyz-eular
-                cout << "Rotation matrix <-> vector conversion test in xyz-eular" << endl;
-                Vec3d   rot_vec_2 = erp_rot.rot2eular(rot_mat);
-                cout << "Test rotation vector input, euler-XYZ, " << rot_vec << endl;
-                cout << "Test rotation vector output, euler-XYZ, " << rot_vec_2 << endl;
 
                 // Image rotation test
                 // We want to rotate "camera" axis, not "pixel".
@@ -124,21 +152,22 @@ int main()
                 cout << "Eight-Point estimation test" << endl;
                 eight_point estimater;
                 Vec3f rot_vec_estimated, t_vec_estimated;
+                Mat rot_mat_estimated;
                 estimater.find(im_left.cols, im_left.rows, left_key, right_key, rot_vec_estimated, t_vec_estimated, match_size);
+
+                Vec3d rot_vec_estimated_double = Vec3d(rot_vec_estimated[0], rot_vec_estimated[1], rot_vec_estimated[2]);
+                rot_mat_estimated = erp_rot.eular2rot(rot_vec_estimated_double);
                 
-                cout << "R_vector: " << DEGREE(rot_vec_estimated) << endl;
+                Mat result_rot_mat = rot_mat_estimated*(initial_rot_mat.inv());
+                Vec3d result_rot_vec = erp_rot.rot2eular(result_rot_mat);
+
+                cout << "R_vector: " << DEGREE(result_rot_vec) << endl;
                 cout << "T_vector: " << t_vec_estimated << endl;
 
-                Vec3d diff = test_angle_vec - Vec3d(DEGREE(rot_vec_estimated));
-                double sum = abs(diff[0]) + abs(diff[1]) + abs(diff[2]);
-                double avg = sum / 3.0;
-                if(avg >= 1)
-                {
-                    log << "target_R_vector: " << test_angle_vec << endl;
-                    log << "eightpoint_estimated_R_vector: " << DEGREE(rot_vec_estimated) << endl;
-                    log << "eightpoint_estimated_T_vector: " << t_vec_estimated << endl;
-                    log << "match_size: " << match_size << endl;
-                }
+                log << "target_R_vector: " << test_angle_vec << endl;
+                log << "eightpoint_estimated_R_vector: " << DEGREE(result_rot_vec) << endl;
+                log << "eightpoint_estimated_T_vector: " << t_vec_estimated << endl;
+                log << "match_size: " << match_size << endl;
             }
         }
     }
