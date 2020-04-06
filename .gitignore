@@ -6,3 +6,4 @@ Makefile
 *.odc
 *.txt
 .vscode
+build/testoutput*
