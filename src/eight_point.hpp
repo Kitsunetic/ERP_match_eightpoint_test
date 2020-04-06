@@ -12,10 +12,6 @@ class eight_point
                        , std::vector<cv::KeyPoint>& key_left, std::vector<cv::KeyPoint>& key_right
                        , cv::Vec3f& R_vec_out, cv::Vec3f& T_vec_out
                        , int match_size);
-    private:
-    erp_rotation erp_rot;
-
-    double max_vec(cv::Vec3f& vec);
     void eight_point_estimation(int im_width, int im_height
                             , std::vector<cv::Point3d>& key_point_left_rect, std::vector<cv::Point3d>& key_point_right_rect
                             , cv::Vec3f& R1_vec, cv::Vec3f& R2_vec, cv::Vec3f& T_vec
@@ -25,6 +21,10 @@ class eight_point
                     , std::vector<cv::Point3d>& key_point_left_rect, std::vector<cv::Point3d>& key_point_right_rect
                     , cv::Vec3f& R_vec_out, cv::Vec3f& T_vec_out
                     , int match_size);
+    private:
+    erp_rotation erp_rot;
+
+    double max_vec(cv::Vec3f& vec);
 };
 
 class random_array
