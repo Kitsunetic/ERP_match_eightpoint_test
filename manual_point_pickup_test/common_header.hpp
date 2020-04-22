@@ -39,6 +39,9 @@ typedef struct
     std::vector<cv::Point2d> click_points_left;
     std::vector<cv::Point2d> click_points_right;
     int point_state;
+    int eight_point_calculated;
+    cv::Vec3d eight_point_R;
+    cv::Vec3d eight_point_T;
 } callback_param_t;
 
 enum

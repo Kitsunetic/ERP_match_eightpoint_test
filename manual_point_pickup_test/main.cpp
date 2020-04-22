@@ -231,15 +231,20 @@ static void pick_point(int evt, int x, int y, int flags, void* param)
                 result_T = T_vec;
             }
 
-            stringstream sstrm[3];
+            callback_param->eight_point_calculated = 1;
+            callback_param->eight_point_R = result_R;
+            callback_param->eight_point_T = result_T;
+
+            stringstream sstrm[4];
             sstrm[0] << "Eight Point Result";
             sstrm[1] << fixed;
             sstrm[1].precision(3);
-            sstrm[1] << "Result R vector : " << result_R;
+            sstrm[1] << "Result R vector(degree) : " << callback_param->eight_point_R*180.0f/M_PI;
             sstrm[2] << fixed;
             sstrm[2].precision(3);
-            sstrm[2] << "Result_T vector : " << result_T;
-            vector<string> debug_msg = {sstrm[0].str(), sstrm[1].str(), sstrm[2].str()};
+            sstrm[2] << "Result_T vector(unit vector) : " << callback_param->eight_point_T;
+            sstrm[3] << "Press ESC will save rectified image and exit program";
+            vector<string> debug_msg = {sstrm[0].str(), sstrm[1].str(), sstrm[2].str(), sstrm[3].str()};
             debug_show(debug_msg);
         }
         else
@@ -262,6 +267,37 @@ static void pick_point(int evt, int x, int y, int flags, void* param)
         else if(callback_param->magnifying_size < env_setup.mouse_window_min)
             callback_param->magnifying_size = env_setup.mouse_window_min;
     }
+}
+
+Mat rot_from_vec(Vec3d vec1, Vec3d vec2)
+{
+    Vec3d v = Vec3d(vec1[1]*vec2[2] - vec1[2]*vec2[1]
+                   , vec1[2]*vec2[0] - vec1[0]*vec2[2]
+                   , vec1[0]*vec2[1] - vec1[1]*vec2[0]);
+    double c = vec1[0]*vec2[0] + vec1[1]*vec2[1] + vec1[2]*vec2[2];
+
+    Mat v_cross = (Mat_<double>(3, 3) << 0, -v[2], v[1]
+                                      ,v[2], 0, -v[0]
+                                      ,-v[1], v[0], 0);
+    Mat I_mat = Mat::eye(3, 3, CV_64F);
+    Mat R = I_mat + v_cross + v_cross*v_cross*(1/1+c);
+
+    return R;
+}
+
+void rectify(const Mat& im_left, const Mat& im_right, Vec3d initial_rot_vec, Vec3d initial_t_vec,
+                 Mat& im_left_rectification, Mat& im_right_rectification)
+{    
+    // image rotation tool
+    erp_rotation erp_rot;
+
+    Mat R_left_recti = rot_from_vec(Vec3d(0, -1, 0), initial_t_vec);
+    Mat R_left_recti_inv = R_left_recti.inv();
+    Mat R_right_recti = R_left_recti*erp_rot.eular2rot(initial_rot_vec).inv();
+    Mat R_right_recti_inv = R_right_recti.inv();
+
+    im_left_rectification = erp_rot.rotate_image(im_left, R_left_recti_inv);
+    im_right_rectification = erp_rot.rotate_image(im_right, R_right_recti_inv);
 }
 
 int main(int argc, char* argv[])
@@ -306,6 +342,9 @@ int main(int argc, char* argv[])
     callback_param.pt = Point2i(0, 0);
     callback_param.x_offset = 0;
     callback_param.y_offset = 0;
+    callback_param.eight_point_calculated = 0;
+    callback_param.eight_point_R = Vec3d(0, 0, 0);
+    callback_param.eight_point_T = Vec3d(0, 0, 0);
     
     namedWindow(env_setup.window_name);
     setMouseCallback(env_setup.window_name, pick_point, (void*)&callback_param);
@@ -321,7 +360,7 @@ int main(int argc, char* argv[])
     setTrackbarPos("y_offset", env_setup.mouse_window_name, 0);
 
     stringstream sstrm[4];
-    sstrm[0] << "Debug Printer Window";
+    sstrm[0] << "Debug Printer Window, exit program: ESC";
     sstrm[1] << "Please, select one point in left image";
     sstrm[2] << "Input image width: " << im_left.cols << " height: " << im_left.rows;
     sstrm[3] << "Input resized: " << env_setup.resize_input;
@@ -348,6 +387,29 @@ int main(int argc, char* argv[])
         int key_input = waitKey(10);
         if(key_input == 27)
             break;
+    }
+
+    if(callback_param.eight_point_calculated == 1)
+    {
+        stringstream sstrm[1];
+        sstrm[0] << "Save Rectified images";
+        vector<string> debug_msg = {sstrm[0].str()};
+        debug_show(debug_msg);
+
+        Mat rectified_left, rectified_right;
+        rectify(im_left, im_right, callback_param.eight_point_R, callback_param.eight_point_T, rectified_left, rectified_right);
+
+        erp_rotation erp_rot;
+        Mat rot_mat_90deg = erp_rot.eular2rot(Vec3d(RAD(89.999), 0, 0)).inv();
+        Mat left_rotate = erp_rot.rotate_image(rectified_left, rot_mat_90deg);
+        Mat right_rotate = erp_rot.rotate_image(rectified_right, rot_mat_90deg);
+        cv::rotate(left_rotate, left_rotate, cv::ROTATE_90_CLOCKWISE);
+        cv::rotate(right_rotate, right_rotate, cv::ROTATE_90_CLOCKWISE);
+
+        imwrite("rectified_left.png", rectified_left);
+        imwrite("rectified_right.png", rectified_right);
+        imwrite("rectified_left_vertical.png", left_rotate);
+        imwrite("rectified_right_vertical.png", right_rotate);
     }
 
     return 0;
