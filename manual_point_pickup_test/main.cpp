@@ -1,49 +1,31 @@
-#include "erp_rotation.hpp"
-#include "eight_point.hpp"
-
-#include <opencv2/opencv.hpp>
-#include <iostream>
-#include <numeric>
-#include <fstream>
-#include <ctime>
+#include "common_header.hpp"
 
 using namespace std;
 using namespace cv;
 
-#define OUTPUT_HEIGHT 960
-#define MOUSE_OFFSET_MAX 3
-#define MOUSE_WINDOW_MAX 201
-#define MOUSE_WINDOW_MIN 5
-#define WINDOW_NAME "test_show"
-#define MOUSE_WINDOW_NAME "magnifying_tool"
+static enviroment_setup_t env_setup;
 
-enum
+static Mat debug_mat;
+void debug_show(vector<string>& str)
 {
-    LEFT_POINT = 0,
-    RIGHT_POINT,
-};
-typedef struct
-{
-    Point2i pt;
-    double resize_ratio;
-    int x_offset;
-    int y_offset;
-    int magnifying_size;
-    vector<Point2d> click_points_left;
-    vector<Point2d> click_points_right;
-    int point_state;
-} callback_param_t;
+    debug_mat = Mat::zeros(Size(env_setup.debug_window_width, env_setup.debug_window_height), CV_8UC3);
+    for(int i = 0; i < str.size(); i++)
+    {
+        putText(debug_mat, str[i], Point(0, 20*(1+i)), cv::HersheyFonts::FONT_HERSHEY_DUPLEX, 0.8, Scalar(0, 255, 0));
+    }
+    imshow(env_setup.debug_window_name, debug_mat);
+}
 
 static void imshow_resize(Mat& im_left, Mat& im_right)
 {
-    double resize_ratio = double(OUTPUT_HEIGHT)/double(im_left.rows*2);
+    double resize_ratio = double(env_setup.output_height)/double(im_left.rows*2);
     Mat im_left_resize, im_right_resize;
     resize(im_left, im_left_resize, Size(), resize_ratio, resize_ratio);
     resize(im_right, im_right_resize, Size(), resize_ratio, resize_ratio);
     vector<Mat> show_vector = {im_left_resize, im_right_resize};
     Mat show_mat;
     vconcat(show_vector, show_mat);
-    imshow(WINDOW_NAME, show_mat);
+    imshow(env_setup.window_name, show_mat);
 }
 
 static void mouse_show(Mat& im_left, Mat& im_right, callback_param_t& callback_param)
@@ -80,7 +62,7 @@ static void mouse_show(Mat& im_left, Mat& im_right, callback_param_t& callback_p
                                             , window_size));
     }
     mouse_window.at<Vec3b>((window_size/2), (window_size/2)) = Vec3b(0, 255, 0);
-    resize(mouse_window, mouse_window, Size(MOUSE_WINDOW_MAX, MOUSE_WINDOW_MAX), 0, 0, CV_INTER_NN);
+    resize(mouse_window, mouse_window, Size(env_setup.mouse_window_max, env_setup.mouse_window_max), 0, 0, CV_INTER_NN);
 
     Mat left_capture;
     if(callback_param.click_points_left.size() > 0)
@@ -95,10 +77,10 @@ static void mouse_show(Mat& im_left, Mat& im_right, callback_param_t& callback_p
                                             , window_size));
 
         left_capture.at<Vec3b>((window_size/2), (window_size/2)) = Vec3b(0, 255, 0);
-        resize(left_capture, left_capture, Size(MOUSE_WINDOW_MAX, MOUSE_WINDOW_MAX), 0, 0, CV_INTER_NN);
+        resize(left_capture, left_capture, Size(env_setup.mouse_window_max, env_setup.mouse_window_max), 0, 0, CV_INTER_NN);
     }
     else
-        left_capture = Mat::zeros(Size(MOUSE_WINDOW_MAX, MOUSE_WINDOW_MAX), CV_8UC3);
+        left_capture = Mat::zeros(Size(env_setup.mouse_window_max, env_setup.mouse_window_max), CV_8UC3);
     
     Mat right_capture;
     if(callback_param.click_points_right.size() > 0)
@@ -113,15 +95,15 @@ static void mouse_show(Mat& im_left, Mat& im_right, callback_param_t& callback_p
                                             , window_size));
 
         right_capture.at<Vec3b>((window_size/2), (window_size/2)) = Vec3b(0, 255, 0);
-        resize(right_capture, right_capture, Size(MOUSE_WINDOW_MAX, MOUSE_WINDOW_MAX), 0, 0, CV_INTER_NN);
+        resize(right_capture, right_capture, Size(env_setup.mouse_window_max, env_setup.mouse_window_max), 0, 0, CV_INTER_NN);
     }
     else
-        right_capture = Mat::zeros(Size(MOUSE_WINDOW_MAX, MOUSE_WINDOW_MAX), CV_8UC3);
+        right_capture = Mat::zeros(Size(env_setup.mouse_window_max, env_setup.mouse_window_max), CV_8UC3);
 
     vector<Mat> mouse_window_arr = {mouse_window, left_capture, right_capture};
     Mat mouse_window_result;
     vconcat(mouse_window_arr, mouse_window_result);
-    imshow(MOUSE_WINDOW_NAME, mouse_window_result);
+    imshow(env_setup.mouse_window_name, mouse_window_result);
 }
 
 static void pick_point(int evt, int x, int y, int flags, void* param)
@@ -136,35 +118,57 @@ static void pick_point(int evt, int x, int y, int flags, void* param)
     }
     else if(evt == CV_EVENT_LBUTTONDOWN)
     {
-        Rect window_rect = getWindowImageRect(WINDOW_NAME);
+        Rect window_rect = getWindowImageRect(env_setup.window_name);
         if(callback_param->point_state == LEFT_POINT)
         {
             if(y < window_rect.height/2)
             {
-                cout << "left point input" << endl;
                 Point2i input = callback_param->pt;
                 callback_param->click_points_left.push_back(input);
-                cout << "Point x: " << input.x << " Point y: " << input.y << endl;
-                cout << "num of left point: " << callback_param->click_points_left.size() << endl;
-                cout << "num of right point: " << callback_param->click_points_right.size() << endl;
                 callback_param->point_state = RIGHT_POINT;
+
+                stringstream sstrm[5];
+                sstrm[0] << "left point input";
+                sstrm[1] << "Point x: " << input.x << " Point y: " << input.y;
+                sstrm[2] << "num of left point: " << callback_param->click_points_left.size();
+                sstrm[3] << "num of right point: " << callback_param->click_points_right.size();
+                sstrm[4] << "Please Select right point";
+                vector<string> debug_msg = {sstrm[0].str(), sstrm[1].str(), sstrm[2].str(), sstrm[3].str(), sstrm[4].str()};
+                debug_show(debug_msg);
             }
             else
-                cout << "Not this area" << endl;
+            {
+                stringstream sstrm[2];
+                sstrm[0] << "Not this area";
+                sstrm[1] << "Please, Select in left image";
+                vector<string> debug_msg = {sstrm[0].str(),sstrm[1].str()};
+                debug_show(debug_msg);
+            }
         }
         else if(callback_param->point_state == RIGHT_POINT)
         {
             if(y < window_rect.height/2)
-                cout << "Not this area" << endl;
+            {
+                stringstream sstrm[2];
+                sstrm[0] << "Not this area";
+                sstrm[1] << "Please, Select in right image";
+                vector<string> debug_msg = {sstrm[0].str(),sstrm[1].str()};
+                debug_show(debug_msg);
+            }
             else
             {
-                cout << "right point input" << endl;
                 Point2i input = Point2i(callback_param->pt.x, callback_param->pt.y - (window_rect.height/2)/resize_ratio);
                 callback_param->click_points_right.push_back(input);
-                cout << "Point x: " << input.x << " Point y: " << input.y << endl;
-                cout << "num of left point: " << callback_param->click_points_left.size() << endl;
-                cout << "num of right point: " << callback_param->click_points_right.size() << endl;
                 callback_param->point_state = LEFT_POINT;
+
+                stringstream sstrm[5];
+                sstrm[0] << "right point input";
+                sstrm[1] << "Point x: " << input.x << " Point y: " << input.y;
+                sstrm[2] << "num of left point: " << callback_param->click_points_left.size();
+                sstrm[3] << "num of right point: " << callback_param->click_points_right.size();
+                sstrm[4] << "Please Select left point";
+                vector<string> debug_msg = {sstrm[0].str(), sstrm[1].str(), sstrm[2].str(), sstrm[3].str(), sstrm[4].str()};
+                debug_show(debug_msg);
             }
         }
     }
@@ -174,13 +178,10 @@ static void pick_point(int evt, int x, int y, int flags, void* param)
         int right_size = callback_param->click_points_right.size();
         if((left_size == right_size)&&(left_size >= 8))
         {
-            cout << "eight_point_start" << endl;
-            Rect window_rect = getWindowImageRect(WINDOW_NAME);
+            Rect window_rect = getWindowImageRect(env_setup.window_name);
             int match_size = left_size;
             int im_width = window_rect.width*(1/resize_ratio);
             int im_height = window_rect.height*(1/resize_ratio)/2;
-
-            cout << "im_width: " << im_width << " im_height: " << im_height << endl;
 
             // convert pixel to radian coordinate, in unit sphere
             // x : longitude
@@ -229,15 +230,24 @@ static void pick_point(int evt, int x, int y, int flags, void* param)
                 result_R = R2_vec;
                 result_T = T_vec;
             }
-            cout << "R1: " << R1_vec << endl;
-            cout << "R2: " << R2_vec << endl;
-            cout << "t: " << T_vec << endl;
-            cout << "Result R vector : " << result_R << endl;
-            cout << "Result_T vector : " << result_T << endl;
+
+            stringstream sstrm[3];
+            sstrm[0] << "Eight Point Result";
+            sstrm[1] << fixed;
+            sstrm[1].precision(3);
+            sstrm[1] << "Result R vector : " << result_R;
+            sstrm[2] << fixed;
+            sstrm[2].precision(3);
+            sstrm[2] << "Result_T vector : " << result_T;
+            vector<string> debug_msg = {sstrm[0].str(), sstrm[1].str(), sstrm[2].str()};
+            debug_show(debug_msg);
         }
         else
         {
-            cout << "No enough point or size of left/right point not same" << endl;
+            stringstream sstrm[1];
+            sstrm[0] << "No enough point or size of left/right point not same";
+            vector<string> debug_msg = {sstrm[0].str()};
+            debug_show(debug_msg);
         }
     }
     else if(evt == CV_EVENT_MOUSEWHEEL)
@@ -247,46 +257,76 @@ static void pick_point(int evt, int x, int y, int flags, void* param)
         else
             callback_param->magnifying_size -= 1;
         
-        if(callback_param->magnifying_size > MOUSE_WINDOW_MAX)
-            callback_param->magnifying_size = MOUSE_WINDOW_MAX;
-        else if(callback_param->magnifying_size < MOUSE_WINDOW_MIN)
-            callback_param->magnifying_size = MOUSE_WINDOW_MIN;
+        if(callback_param->magnifying_size > env_setup.mouse_window_max)
+            callback_param->magnifying_size = env_setup.mouse_window_max;
+        else if(callback_param->magnifying_size < env_setup.mouse_window_min)
+            callback_param->magnifying_size = env_setup.mouse_window_min;
     }
 }
 
 int main(int argc, char* argv[])
 {
-    if(argc != 3)
+    INIReader reader("config_file.ini");
+    if(reader.ParseError() != 0)
     {
-        cout << "usage: " << argv[0] << " <left image> <right image>" << endl;
+        cout << "please, check config_file.ini" << endl;
         return 0;
     }
+    env_setup.im_left_name = reader.Get("config", "im_left_name", "");
+    env_setup.im_right_name = reader.Get("config", "im_right_name", "");
+    env_setup.resize_input = reader.GetInteger("config", "resize_input", 0);
+    env_setup.resize_input_width = reader.GetInteger("config", "resize_input_width", 0);
+    env_setup.resize_input_height = reader.GetInteger("config", "resize_input_height", 0);
+    env_setup.output_height = reader.GetInteger("config", "output_height", 960);
+    env_setup.mouse_offset_max = reader.GetInteger("config", "mouse_offset_max", 3);
+    env_setup.mouse_window_max = reader.GetInteger("config", "mouse_window_max", 201);
+    env_setup.mouse_window_min = reader.GetInteger("config", "mouse_window_min", 5);
+    env_setup.window_name = reader.Get("config", "window_name", "test_show");
+    env_setup.mouse_window_name = reader.Get("config", "mouse_window_name", "magnifying_tool");
+    env_setup.debug_window_name = reader.Get("config", "debug_window_name", "debug_window");
+    env_setup.debug_window_width = reader.GetInteger("config", "debug_window_width", 800);
+    env_setup.debug_window_height = reader.GetInteger("config", "debug_window_height", 200);
+
     // input image
-    string im_left_name = argv[1];
-    string im_right_name = argv[2];
+    string im_left_name = env_setup.im_left_name;
+    string im_right_name = env_setup.im_right_name;
     Mat im_left = imread(im_left_name);
     Mat im_right = imread(im_right_name);
 
+    if(env_setup.resize_input == 1)
+    {
+        resize(im_left, im_left, Size(env_setup.resize_input_width, env_setup.resize_input_height), 0, 0, INTER_CUBIC);
+        resize(im_right, im_right, Size(env_setup.resize_input_width, env_setup.resize_input_height), 0, 0, INTER_CUBIC);
+    }
+
     callback_param_t callback_param;
-    callback_param.resize_ratio = double(OUTPUT_HEIGHT)/double(im_left.rows*2);
+    callback_param.resize_ratio = double(env_setup.output_height)/double(im_left.rows*2);
     callback_param.magnifying_size = 10;
     callback_param.point_state = LEFT_POINT;
     callback_param.pt = Point2i(0, 0);
     callback_param.x_offset = 0;
     callback_param.y_offset = 0;
     
-    namedWindow(WINDOW_NAME);
-    setMouseCallback(WINDOW_NAME, pick_point, (void*)&callback_param);
+    namedWindow(env_setup.window_name);
+    setMouseCallback(env_setup.window_name, pick_point, (void*)&callback_param);
 
-    namedWindow(MOUSE_WINDOW_NAME);
-    createTrackbar("x_offset", MOUSE_WINDOW_NAME, &(callback_param.x_offset), 7);
-    setTrackbarMin("x_offset", MOUSE_WINDOW_NAME, -3);
-    setTrackbarMax("x_offset", MOUSE_WINDOW_NAME, 3);
-    setTrackbarPos("x_offset", MOUSE_WINDOW_NAME, 0);
-    createTrackbar("y_offset", MOUSE_WINDOW_NAME, &(callback_param.y_offset), 7);
-    setTrackbarMin("y_offset", MOUSE_WINDOW_NAME, -3);
-    setTrackbarMax("y_offset", MOUSE_WINDOW_NAME, 3);
-    setTrackbarPos("y_offset", MOUSE_WINDOW_NAME, 0);
+    namedWindow(env_setup.mouse_window_name);
+    createTrackbar("x_offset", env_setup.mouse_window_name, &(callback_param.x_offset), 7);
+    setTrackbarMin("x_offset", env_setup.mouse_window_name, -3);
+    setTrackbarMax("x_offset", env_setup.mouse_window_name, 3);
+    setTrackbarPos("x_offset", env_setup.mouse_window_name, 0);
+    createTrackbar("y_offset", env_setup.mouse_window_name, &(callback_param.y_offset), 7);
+    setTrackbarMin("y_offset", env_setup.mouse_window_name, -3);
+    setTrackbarMax("y_offset", env_setup.mouse_window_name, 3);
+    setTrackbarPos("y_offset", env_setup.mouse_window_name, 0);
+
+    stringstream sstrm[4];
+    sstrm[0] << "Debug Printer Window";
+    sstrm[1] << "Please, select one point in left image";
+    sstrm[2] << "Input image width: " << im_left.cols << " height: " << im_left.rows;
+    sstrm[3] << "Input resized: " << env_setup.resize_input;
+    vector<string> debug_msg = {sstrm[0].str(), sstrm[1].str(), sstrm[2].str(), sstrm[3].str()};
+    debug_show(debug_msg);
 
     while(1)
     {
