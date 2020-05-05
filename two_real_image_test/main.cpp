@@ -104,14 +104,7 @@ int main(int argc, char* argv[])
     erp_rotation erp_rot;
 
     // log file open
-    time_t now = time(0);
-    tm *local_time = localtime(&now);
-    string log_name = to_string(local_time->tm_year)
-                      +'_'+to_string(local_time->tm_mon)
-                      +'_'+to_string(local_time->tm_mday)
-                      +'_'+to_string(local_time->tm_hour)
-                      +'_'+to_string(local_time->tm_min)
-                      +"_log.txt";
+    string log_name = "estimated_extrinsic.txt";
     ofstream log;
     log.open(log_name);
 
@@ -160,10 +153,17 @@ int main(int argc, char* argv[])
         imshow_resize("left_rectified", im_left_rectification);
         imshow_resize("right_rectified", im_right_rectification);
 
-        imwrite("left_origin.png", im_left);
-        imwrite("right_origin.png", im_right);
-        imwrite("left_rectified.png", im_left_rectification);
-        imwrite("right_rectified.png", im_right_rectification);
+        erp_rotation erp_rot;
+        Mat rot_mat_90deg = erp_rot.eular2rot(Vec3d(RAD(89.999), 0, 0)).inv();
+        Mat left_rotate = erp_rot.rotate_image(im_left_rectification, rot_mat_90deg);
+        Mat right_rotate = erp_rot.rotate_image(im_right_rectification, rot_mat_90deg);
+        cv::rotate(left_rotate, left_rotate, cv::ROTATE_90_CLOCKWISE);
+        cv::rotate(right_rotate, right_rotate, cv::ROTATE_90_CLOCKWISE);
+
+        imwrite("rectified_left.png", im_left_rectification);
+        imwrite("rectified_right.png", im_right_rectification);
+        imwrite("rectified_left_vertical.png", left_rotate);
+        imwrite("rectified_right_vertical.png", right_rotate);
     }
 
 #if TEST_TYPE == 0

@@ -57,7 +57,11 @@ epipolar_tool::epipolar_tool(std::vector<cv::KeyPoint>& left_key, std::vector<cv
         pixel_rect[i].resize(epipole_mat_width);
     }
 
+#ifdef _WIN32
+    #pragma omp parallel for
+#else
     #pragma omp parallel for collapse(2)
+#endif
     for(int i = 0; i < epipole_mat_height; i++)
     {
         for(int j = 0; j < epipole_mat_width; j++)
@@ -80,8 +84,12 @@ epipolar_tool::epipolar_tool(std::vector<cv::KeyPoint>& left_key, std::vector<cv
 cv::Mat epipolar_tool::draw_epipole(cv::Mat& test_E_mat)
 {
     Mat epipole_mat = Mat::zeros(epipole_mat_height, epipole_mat_width, CV_8UC3);
-
+    
+#ifdef _WIN32
+    #pragma omp parallel for
+#else
     #pragma omp parallel for collapse(3)
+#endif
     for(int i = 0; i < epipole_mat_height; i++)
     {
         for(int j = 0; j < epipole_mat_width; j++)

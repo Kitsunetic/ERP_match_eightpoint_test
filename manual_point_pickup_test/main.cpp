@@ -323,6 +323,11 @@ int main(int argc, char* argv[])
     env_setup.debug_window_width = reader.GetInteger("config", "debug_window_width", 800);
     env_setup.debug_window_height = reader.GetInteger("config", "debug_window_height", 200);
 
+    // log file open
+    string log_name = "manual_estimated_extrinsic.txt";
+    ofstream log;
+    log.open(log_name);
+
     // input image
     string im_left_name = env_setup.im_left_name;
     string im_right_name = env_setup.im_right_name;
@@ -396,6 +401,9 @@ int main(int argc, char* argv[])
         vector<string> debug_msg = {sstrm[0].str()};
         debug_show(debug_msg);
 
+        log << "initial_R_vector: " << DEGREE(callback_param.eight_point_R) << endl;
+        log << "initial_T_vector: " << callback_param.eight_point_T << endl;
+
         Mat rectified_left, rectified_right;
         rectify(im_left, im_right, callback_param.eight_point_R, callback_param.eight_point_T, rectified_left, rectified_right);
 
@@ -411,6 +419,8 @@ int main(int argc, char* argv[])
         imwrite("rectified_left_vertical.png", left_rotate);
         imwrite("rectified_right_vertical.png", right_rotate);
     }
+
+    log.close();
 
     return 0;
 }
