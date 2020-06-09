@@ -1,5 +1,6 @@
 #pragma once
 
+#include "debug_print.h"
 #include "feature_matcher.hpp"
 #include "erp_rotation.hpp"
 #include <omp.h>

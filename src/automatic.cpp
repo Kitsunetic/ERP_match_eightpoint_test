@@ -1,3 +1,6 @@
+#define _USE_MATH_DEFINES
+
+#include "debug_print.h"
 #include "erp_rotation.hpp"
 #include "spherical_surf.hpp"
 #include "eight_point.hpp"
@@ -8,8 +11,6 @@
 #include <fstream>
 #include <ctime>
 #include <omp.h>
-
-#include "debug_print.h"
 
 using namespace std;
 using namespace cv;

@@ -1,7 +1,8 @@
+#define _USE_MATH_DEFINES
+
 #include "erp_rotation.hpp"
 #include "debug_print.h"
 
-#define _USE_MATH_DEFINES
 #include <cmath>
 #include <iostream>
 #include <omp.h>

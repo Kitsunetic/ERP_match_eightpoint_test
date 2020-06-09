@@ -1,7 +1,9 @@
 #pragma once
-#include "opencv2/opencv_modules.hpp"
 
 #define _USE_MATH_DEFINES
+#include "debug_print.h"
+#include "opencv2/opencv_modules.hpp"
+
 #include <vector>
 #include <algorithm>
 #include <utility>

@@ -1,4 +1,6 @@
 #pragma once
+
+#include "debug_print.h"
 #include <opencv2/opencv.hpp>
 
 #define RAD(x) M_PI*(x)/180.0

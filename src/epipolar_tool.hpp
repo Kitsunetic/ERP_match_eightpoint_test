@@ -1,5 +1,6 @@
 #pragma once
 
+#include "debug_print.h"
 #include <opencv2/opencv.hpp>
 #include <vector>
 
