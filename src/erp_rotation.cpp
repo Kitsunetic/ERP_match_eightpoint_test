@@ -1,4 +1,5 @@
 #include "erp_rotation.hpp"
+#include "debug_print.h"
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -106,9 +107,7 @@ Mat erp_rotation::rotate_image(const Mat& im, Mat& rot_mat)
         for(int j = 0; j < width; j++)
         {
             // inverse warping
-            Vec2i vec_pixel = rotate_pixel(Vec2i(i, j) 
-                                         , rot_mat_inv
-                                         , width, height);
+            Vec2i vec_pixel = rotate_pixel(Vec2i(i, j), rot_mat_inv, width, height);
             int origin_i = vec_pixel[0];
             int origin_j = vec_pixel[1];
             if((origin_i >= 0) && (origin_j >= 0) && (origin_i < height) && (origin_j < width))
